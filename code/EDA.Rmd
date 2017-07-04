@@ -1,5 +1,5 @@
 ---
-title: "Analysis on Takl's operation"
+title: "EDA | Takl"
 author: "Francis Ratsimbazafy"
 output: 
   html_document:
@@ -9,9 +9,11 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 require("tidyverse")
+require("lubridate")
 require("ggplot2")
 require("readxl")
 require("gridExtra")
+require("gmodels")
 
 root <- '/media/user27/Data/Exo Programmation/Job/Takl/'
 data.folder <- 'data/'
@@ -29,7 +31,10 @@ appt.df <- appt.df %>%
 
 full.df <- appt.df %>% left_join(zip.df, by=c("zipcode" = "zipcode"), copy=F, suffix = c(".appt", ".zip"))
 full.df <- full.df %>% mutate(job.duration = difftime(completed.time, arrival.time, units="hours"),
-                              created.date = as.Date(created.at.appt, format="%m/%d/%y %H:%M"))
+                              created.date = as.Date(created.at.appt, format="%m/%d/%y %H:%M"),
+                              day = wday(schedule.time, label=T),
+                              hour = hour(schedule.time),
+                              month= month(schedule.time))
 
 jobs.region <- full.df %>% select(region, category, status, accepted.price, job.duration)
 ```
@@ -106,8 +111,9 @@ jobs.region %>% filter(status=="finalized") %>% group_by(region, category) %>% s
 ```
 
 ## Cancellation rate over time
-```{r, echo=F}
-full.df %>% mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled"), created.date=as.POSIXct(created.date)) %>% 
+The figure below shows that at the beginning, the average cancellation rate fluctuate a lot, with some day having all jobs being cancelled. However, this behavior can be explained by the limited total number of operations that Takl had at the beginning. Over time, the daily average cancellation rate levelled off around fifty percent, or one job out of two gets cancelled every day on average, and the number of jobs scheduled (regardless of status) have substantially increased.
+```{r, echo=F, fig.height=10}
+c1 <- full.df %>% mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled"), created.date=as.POSIXct(created.date)) %>% 
   group_by(created.date, cancelled) %>% summarize(count=n()) %>% mutate(freq = count/sum(count)) %>% 
   filter(cancelled=="cancelled") %>%
   ggplot(aes(x=created.date, y=freq)) + geom_line() +  geom_smooth(method="loess", se=F) + 
@@ -115,21 +121,31 @@ full.df %>% mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancel
   scale_x_datetime(breaks=scales::date_breaks("5 days"), labels=scales::date_format("%m-%d-%Y")) + 
   labs(x="Created Date", y="Frequency", title="Cancellation rate over time") +
   theme(axis.text.x=element_text(angle=90))
+c2 <- full.df %>% mutate(created.date=as.POSIXct(created.date)) %>% 
+  ggplot(aes(x=created.date)) + geom_bar() + theme_bw() +
+    scale_x_datetime(breaks=scales::date_breaks("5 days"), labels=scales::date_format("%m-%d-%Y")) + 
+  labs(x="Created Date", y="Frequency", title="Number of Jobs over time") +
+  theme(axis.text.x=element_text(angle=90))
+grid.arrange(c1, c2, ncol=1)
 ```
 
 ## Counter-bidding: positive or negative effect on cancellations?
+To begin with, let us test first whether there is any dependency between counter-bidding and cancellations. In the table below, I run a Pearson chi-squared test with the null hypothesis being the two categorical variables are independent. The result shows that p-value is very small in magnitude. Thus, say at a significance level of 5 percent, we can find enough statistical evidence that the two variables have a relationship. Furthermore, the table, as well as the graph below it, states that jobs that have counterbid are twice as likely to be cancelled as jobs without counterbid. In this regard, there is a suggestion that counterbid have a positive effect on cancellations (positive effect meaning that the correlation between the two variables is positive, or in other words, jobs with counterbid are likely to be cancelled).
+
 ```{r, echo=F}
-full.df %>% filter(counterbid=="TRUE") %>% 
-  mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled"), created.date=as.POSIXct(created.date)) %>% 
-  group_by(created.date, cancelled) %>% summarize(count=n()) %>% mutate(freq = count/sum(count)) %>% 
-  filter(cancelled=="cancelled") %>%
-  ggplot(aes(x=created.date, y=freq)) + geom_line() +  geom_smooth(method="loess", se=F) + 
-  theme_bw() +
-  scale_x_datetime(breaks=scales::date_breaks("5 days"), labels=scales::date_format("%m-%d-%Y")) + 
-  labs(x="Created Date", y="Frequency", title="Cancellation rate over time") +
-  theme(axis.text.x=element_text(angle=90))
+bid.cancel <- full.df %>% 
+  mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled")) %>% select(counterbid, cancelled)
+CrossTable(bid.cancel$counterbid, bid.cancel$cancelled, digits=2, prop.r=F, prop.c=F, prop.chisq=F, chisq=T)
 ```
 
-## What else?
+```{r, echo=F}
 
+full.df %>% mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled")) %>% ggplot(aes(x=cancelled)) + geom_bar() + theme_bw() +
+  facet_wrap(~counterbid)
+```
+
+## What else: a study of cancelled jobs?
+```{r, echo=F}
+
+```
 

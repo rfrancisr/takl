@@ -1,4 +1,4 @@
-# Analysis on Takl's operation
+# EDA | Takl
 Francis Ratsimbazafy  
 
 
@@ -48,11 +48,55 @@ The heatmap belows shows that on average, most finalized jobs are completed with
 ![](EDA_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
 ## Cancellation rate over time
+The figure below shows that at the beginning, the average cancellation rate fluctuate a lot, with some day having all jobs being cancelled. However, this behavior can be explained by the limited total number of operations that Takl had at the beginning. Over time, the daily average cancellation rate levelled off around fifty percent, or one job out of two gets cancelled every day on average, and the number of jobs scheduled (regardless of status) have substantially increased.
 ![](EDA_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
 
 ## Counter-bidding: positive or negative effect on cancellations?
-![](EDA_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
+To begin with, let us test first whether there is any dependency between counter-bidding and cancellations. In the table below, I run a Pearson chi-squared test with the null hypothesis being the two categorical variables are independent. The result shows that p-value is very small in magnitude. Thus, say at a significance level of 5 percent, we can find enough statistical evidence that the two variables have a relationship. Furthermore, the table, as well as the graph below it, states that jobs that have counterbid are twice as likely to be cancelled as jobs without counterbid. In this regard, there is a suggestion that counterbid have a positive effect on cancellations (positive effect meaning that the correlation between the two variables is positive, or in other words, jobs with counterbid are likely to be cancelled).
 
-## What else?
+
+```
+## 
+##  
+##    Cell Contents
+## |-------------------------|
+## |                       N |
+## |         N / Table Total |
+## |-------------------------|
+## 
+##  
+## Total Observations in Table:  10000 
+## 
+##  
+##                       | bid.cancel$cancelled 
+## bid.cancel$counterbid |     cancelled | not cancelled |     Row Total | 
+## ----------------------|---------------|---------------|---------------|
+##                 FALSE |          4825 |          4629 |          9454 | 
+##                       |          0.48 |          0.46 |               | 
+## ----------------------|---------------|---------------|---------------|
+##                  TRUE |           387 |           159 |           546 | 
+##                       |          0.04 |          0.02 |               | 
+## ----------------------|---------------|---------------|---------------|
+##          Column Total |          5212 |          4788 |         10000 | 
+## ----------------------|---------------|---------------|---------------|
+## 
+##  
+## Statistics for All Table Factors
+## 
+## 
+## Pearson's Chi-squared test 
+## ------------------------------------------------------------
+## Chi^2 =  81.44107     d.f. =  1     p =  1.805665e-19 
+## 
+## Pearson's Chi-squared test with Yates' continuity correction 
+## ------------------------------------------------------------
+## Chi^2 =  80.64788     d.f. =  1     p =  2.69744e-19 
+## 
+## 
+```
+
+![](EDA_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
+
+## What else: cancelled jobs?
 
 
