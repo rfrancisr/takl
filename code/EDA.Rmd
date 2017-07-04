@@ -101,7 +101,7 @@ The five most popular jobs identified earlier remain the most demanded jobs, eve
 ## Duration of jobs, by region
 The heatmap belows shows that on average, most finalized jobs are completed within five to ten hours.
 ```{r, echo=F}
-jobs.region %>% filter(status=="finalized") %>% group_by(region, category) %>% summarize(duration=mean(job.duration, na.rm=T)) %>% 
+jobs.region %>% filter(status=="finalized", !is.na(region), !is.na(category)) %>% group_by(region, category) %>% summarize(duration=mean(job.duration, na.rm=T)) %>% 
   ggplot(aes(x=region, y=category)) + geom_tile(aes(fill=duration), color="white") + 
   scale_fill_gradient(low="white", high="steelblue") +
   coord_equal() + theme_grey(base_size=9) +
@@ -146,6 +146,20 @@ full.df %>% mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancel
 
 ## What else: a study of cancelled jobs?
 ```{r, echo=F}
-
+p1 <- full.df %>% filter(status=="canceled", !is.na(day)) %>% 
+  ggplot(aes(x=day)) + geom_bar() +
+  theme_bw()
+p2 <- full.df %>% filter(status=="canceled", !is.na(month)) %>% 
+  ggplot(aes(x=month)) + geom_bar() +
+  theme_bw()
+p3 <- full.df %>% filter(status=="canceled", !is.na(hour)) %>% 
+  ggplot(aes(x=hour)) + geom_bar() +
+  theme_bw()
+p4 <- full.df %>% filter(status=="canceled", !is.na(skill)) %>% group_by(skill) %>% summarize(count=n()) %>% top_n(n=10, wt=count) %>% 
+  ggplot(aes(x=reorder(skill, count), y=count)) + geom_bar(stat="identity") +
+  theme_bw() + theme(axis.text.x=element_text(angle=270)) + labs(x="skill", title="Cancelled Job by Skill")
+p5 <- full.df %>% filter(status=="canceled", !is.na(region)) %>% 
+  ggplot(aes(x=reorder(region, region, function(x) length(x)))) + geom_bar() +
+  theme_bw() + theme(axis.text.x=element_text(angle=90)) + labs(x="region", title="Cancelled jobs by region")
 ```
 

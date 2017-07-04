@@ -49,6 +49,15 @@ The heatmap belows shows that on average, most finalized jobs are completed with
 
 ## Cancellation rate over time
 The figure below shows that at the beginning, the average cancellation rate fluctuate a lot, with some day having all jobs being cancelled. However, this behavior can be explained by the limited total number of operations that Takl had at the beginning. Over time, the daily average cancellation rate levelled off around fifty percent, or one job out of two gets cancelled every day on average, and the number of jobs scheduled (regardless of status) have substantially increased.
+
+```
+## Warning: Ignoring unknown aesthetics: fill
+```
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
 ![](EDA_files/figure-html/unnamed-chunk-6-1.png)<!-- -->
 
 ## Counter-bidding: positive or negative effect on cancellations?
@@ -97,6 +106,6 @@ To begin with, let us test first whether there is any dependency between counter
 
 ![](EDA_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
 
-## What else: cancelled jobs?
+## What else: a study of cancelled jobs?
 
 
