@@ -1,0 +1,133 @@
+---
+title: "Analysis on Takl's operation"
+author: "Francis Ratsimbazafy"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("tidyverse")
+require("ggplot2")
+require("readxl")
+require("gridExtra")
+
+root <- '/media/user27/Data/Exo Programmation/Job/Takl/'
+data.folder <- 'data/'
+
+zip.data <- 'ZIPs.xlsx'
+zip.df <- read_excel(paste0(root, data.folder, zip.data))
+# remove duplicated rows from zip
+zip.df <- distinct(zip.df, Zipcode, .keep_all=T) %>% 
+  rename(zipcode=Zipcode, created.at=`Created at`, updated.at=`Updated at`, provider.signup=`Provider sign up`, lnglat = Lnglat, region = X__1)
+
+appt.data <- 'ApptData.csv'
+appt.df <- read_csv(paste0(root, data.folder, appt.data))
+appt.df <- appt.df %>% 
+  rename(chore = `Chore name`, category=`Category name`, subcategory = Subcategory, skill = `Skill name`, responses=Responses, yes.responses=`Yes responses`, notif=`Notifications sent`, disputes=`Work disputes`, zipcode=`Zip code`, preceding.appt=`Preceding appointment`, counterbid=Counterbid, original.price=`Original price`, accepted.price=`Accepted price`, discounts=Discounts, schedule.time=`Scheduled at`, status=Status, token=Token, arrival.time=`Provider arrived at`, enroute=`Provider en route at`, completed.time=`Completed at`, created.at=`Created at`, updated.at=`Updated at`)
+
+full.df <- appt.df %>% left_join(zip.df, by=c("zipcode" = "zipcode"), copy=F, suffix = c(".appt", ".zip"))
+full.df <- full.df %>% mutate(job.duration = difftime(completed.time, arrival.time, units="hours"),
+                              created.date = as.Date(created.at.appt, format="%m/%d/%y %H:%M"))
+
+jobs.region <- full.df %>% select(region, category, status, accepted.price, job.duration)
+```
+
+## Data {.tabset}
+
+Let us first have a look at what the data looks like, what columns are in each data
+
+### Appointment
+```{r appt, message=F, echo=F}
+knitr::kable(head(appt.df, 3), digits=2)
+```
+
+There are 10.000 jobs in this data. Most of them are either finalized or cancelled. `r sum(appt.df$status == "canceled")` jobs were cancelled, which represent `r 100*sum(appt.df$status == "canceled")/nrow(appt.df)`% of the data, and `r sum(appt.df$status == "finalized")` jobs were finalized. 
+
+```{r, echo=F}
+ggplot(data=appt.df, aes(x=reorder(status, status, function(x) length(x)))) +
+  geom_bar() + coord_flip() +
+  labs(x="Job Status") +
+  theme_minimal()
+```
+
+
+```{r, echo=F, }
+p1 <- ggplot(data = appt.df, aes(x=reorder(category, category, function(x)-length(x)))) +
+  geom_bar() + coord_flip() + 
+  labs(x="Category") +
+  theme_minimal()
+
+```  
+
+
+### Zip data
+```{r zip, message=F, echo=F}
+knitr::kable(head(zip.df))
+```
+
+There are duplicated rows in the zip data. I removed all of them (some of them were duplicate in all respects, others are created at a later date and time, but essentially have the same zipcode, longlat, region).
+
+## Most popular jobs by Region
+At a first glance, yard job, custom job, handyman, cleaning and housekeeping, and haul away are the most demanded jobs at Takl. The first graph shows the most popular jobs irrespective of the status. The second figure is limited to jobs that are finalized. As we can see, these categories remain top 5, although the order is a litte bit altered, with handyman being the top demanded job, followed by yard, custom jobs, cleaning and housekeeping, and haul away. Finally, the second row shows the most profitable finalized jobs. Again, the previous categories remain top five, and handyman being the most lucrative category.
+```{r, echo=F}
+g1 <- ggplot(data=jobs.region, aes(x=reorder(category, category, function(x)length(x)))) + geom_bar() + 
+  coord_flip() + labs(x="Job Category") + theme_bw()
+
+g2 <- jobs.region %>% filter(status=="finalized") %>% ggplot(aes(x=reorder(category, category, function(x)length(x)))) + geom_bar() +
+  coord_flip() + labs(x="Job Category") + theme_bw()
+g3 <- jobs.region %>% filter(status=="finalized") %>% group_by(category) %>% summarize(revenue=sum(accepted.price, na.rm=T)) %>% 
+  ggplot(aes(x=reorder(category, revenue), y=revenue)) +
+  geom_bar(stat="identity") +
+  coord_flip() + labs(x="Job Category", y="Revenue") + theme_bw()
+
+grid.arrange(g1, g2, g3, nrow=2)
+```
+
+The five most popular jobs identified earlier remain the most demanded jobs, even at a region level. As can be seen from the figure below, yard jobs, handyman, cleaning and housekeeping, haul away, and custom jobs are the top five most demanded jobs in all regions. The order varies by region, and in general, yard and handyman are the most popular. In the figure below, I restricted the data to finalized jobs only.
+```{r, echo=F, fig.height=20, fig.width=20}
+ jobs.region %>% filter(status=="finalized") %>% group_by(region, category) %>% summarize(count=n()) %>% top_n(n=5, w=count) %>% arrange(region,desc(count)) %>% mutate(category=factor(paste(category, region, sep="_"), levels=rev(paste(category, region, sep="_")))) %>% 
+  ggplot(aes(x=category, y=count)) + geom_bar(stat="identity")+ facet_wrap(~region, ncol=4, scales="free") +
+  scale_y_continuous(labels = scales::comma) + scale_x_discrete(labels=function(x) gsub("_.+$", "", x)) + labs(x = "Job Category", title="Most popular jobs by region") +  coord_flip() +  theme_bw()
+  
+```
+
+## Duration of jobs, by region
+The heatmap belows shows that on average, most finalized jobs are completed within five to ten hours.
+```{r, echo=F}
+jobs.region %>% filter(status=="finalized") %>% group_by(region, category) %>% summarize(duration=mean(job.duration, na.rm=T)) %>% 
+  ggplot(aes(x=region, y=category)) + geom_tile(aes(fill=duration), color="white") + 
+  scale_fill_gradient(low="white", high="steelblue") +
+  coord_equal() + theme_grey(base_size=9) +
+  scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0)) +
+  theme(axis.text.x=element_text(angle=270, hjust=0, colour="grey50"), panel.background=element_blank()) +
+  labs(title="Average Duration of jobs by region")
+```
+
+## Cancellation rate over time
+```{r, echo=F}
+full.df %>% mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled"), created.date=as.POSIXct(created.date)) %>% 
+  group_by(created.date, cancelled) %>% summarize(count=n()) %>% mutate(freq = count/sum(count)) %>% 
+  filter(cancelled=="cancelled") %>%
+  ggplot(aes(x=created.date, y=freq)) + geom_line() +  geom_smooth(method="loess", se=F) + 
+  theme_bw() +
+  scale_x_datetime(breaks=scales::date_breaks("5 days"), labels=scales::date_format("%m-%d-%Y")) + 
+  labs(x="Created Date", y="Frequency", title="Cancellation rate over time") +
+  theme(axis.text.x=element_text(angle=90))
+```
+
+## Counter-bidding: positive or negative effect on cancellations?
+```{r, echo=F}
+full.df %>% filter(counterbid=="TRUE") %>% 
+  mutate(cancelled=ifelse(status=="canceled", "cancelled", "not cancelled"), created.date=as.POSIXct(created.date)) %>% 
+  group_by(created.date, cancelled) %>% summarize(count=n()) %>% mutate(freq = count/sum(count)) %>% 
+  filter(cancelled=="cancelled") %>%
+  ggplot(aes(x=created.date, y=freq)) + geom_line() +  geom_smooth(method="loess", se=F) + 
+  theme_bw() +
+  scale_x_datetime(breaks=scales::date_breaks("5 days"), labels=scales::date_format("%m-%d-%Y")) + 
+  labs(x="Created Date", y="Frequency", title="Cancellation rate over time") +
+  theme(axis.text.x=element_text(angle=90))
+```
+
+## What else?
+
+

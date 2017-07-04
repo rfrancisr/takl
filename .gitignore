@@ -1,0 +1,6 @@
+data/
+.Rhistory
+.RData
+vignettes/*.html
+/cache/
+.Rproj.user/
