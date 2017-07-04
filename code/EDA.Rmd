@@ -1,7 +1,9 @@
 ---
 title: "Analysis on Takl's operation"
 author: "Francis Ratsimbazafy"
-output: html_document
+output: 
+  html_document:
+    keep_md: true
 ---
 
 ```{r setup, include=FALSE}
